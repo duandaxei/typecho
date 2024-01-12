@@ -168,7 +168,7 @@ namespace Typecho {
     class Common
     {
         /** 程序版本 */
-        public const VERSION = '1.2.1';
+        public const VERSION = '1.3.0';
 
         /**
          * 将路径转化为链接
@@ -236,6 +236,8 @@ namespace Typecho {
                 } elseif ($exception instanceof \Typecho\Db\Adapter\SQLException) {
                     $message = 'Database Query Error';
                 }
+            } else {
+                $message = 'Server Error';
             }
 
             /** 设置http code */
@@ -378,8 +380,8 @@ EOF;
             }
 
             //非自闭合html标签列表
-            preg_match_all("/<([_0-9a-zA-Z-\:]+)\s*([^>]*)>/is", $string, $startTags);
-            preg_match_all("/<\/([_0-9a-zA-Z-\:]+)>/is", $string, $closeTags);
+            preg_match_all("/<([_0-9a-zA-Z-:]+)\s*([^>]*)>/is", $string, $startTags);
+            preg_match_all("/<\/([_0-9a-zA-Z-:]+)>/is", $string, $closeTags);
 
             if (!empty($startTags[1]) && is_array($startTags[1])) {
                 krsort($startTags[1]);
@@ -410,7 +412,7 @@ EOF;
                 }
             }
 
-            return preg_replace("/\<br\s*\/\>\s*\<\/p\>/is", '</p>', $string);
+            return preg_replace("/<br\s*\/>\s*<\/p>/is", '</p>', $string);
         }
 
         /**
@@ -432,7 +434,7 @@ EOF;
             $normalizeTags = '';
             $allowableAttributes = [];
 
-            if (!empty($allowableTags) && preg_match_all("/\<([_a-z0-9-]+)([^>]*)\>/is", $allowableTags, $tags)) {
+            if (!empty($allowableTags) && preg_match_all("/<([_a-z0-9-]+)([^>]*)>/is", $allowableTags, $tags)) {
                 $normalizeTags = '<' . implode('><', array_map('strtolower', $tags[1])) . '>';
                 $attributes = array_map('trim', $tags[2]);
                 foreach ($attributes as $key => $val) {
@@ -491,12 +493,12 @@ EOF;
          * @access public
          *
          * @param string|null $str 需要生成缩略名的字符串
-         * @param string|null $default 默认的缩略名
+         * @param string $default 默认的缩略名
          * @param integer $maxLength 缩略名最大长度
          *
          * @return string
          */
-        public static function slugName(?string $str, ?string $default = null, int $maxLength = 128): ?string
+        public static function slugName(?string $str, string $default = '', int $maxLength = 128): string
         {
             $str = trim($str ?? '');
 
@@ -546,8 +548,8 @@ EOF;
             $params = array_map(function ($string) {
                 $string = str_replace(['%0d', '%0a'], '', strip_tags($string));
                 return preg_replace([
-                    "/\(\s*(\"|')/i",           //函数开头
-                    "/(\"|')\s*\)/i",           //函数结尾
+                    "/\(\s*([\"'])/i",           //函数开头
+                    "/([\"'])\s*\)/i",           //函数结尾
                 ], '', $string);
             }, $params);
 
@@ -673,6 +675,18 @@ EOF;
             $str = mb_substr($str, $start, $tLength, 'UTF-8');
 
             return $length < $iLength ? ($str . $trim) : $str;
+        }
+
+        /**
+         * 判断两个字符串是否为空并依次返回
+         *
+         * @param string|null $a
+         * @param string|null $b
+         * @return string|null
+         */
+        public static function strBy(?string $a, ?string $b = null): ?string
+        {
+            return isset($a) && $a !== '' ? $a : $b;
         }
 
         /**
@@ -1476,6 +1490,22 @@ EOF;
             }
 
             return $result;
+        }
+
+        /**
+         * IDN转UTF8
+         *
+         * @param string $url
+         * @return string
+         */
+        public static function idnToUtf8(string $url): string
+        {
+            if (function_exists('idn_to_utf8') && !empty($url)) {
+                $host = parse_url($url, PHP_URL_HOST);
+                $url = str_replace($host, idn_to_utf8($host), $url);
+            }
+
+            return $url;
         }
     }
 }
